@@ -1,0 +1,23 @@
+#!/usr/bin/env python
+
+# getting key from the user
+KEY=$(./script/config)
+
+MOD_NAME=usb_unlocker
+HELPER_PATH=/usr/local/src/crypto_helper
+
+# tty that is being used now
+TTY=NA
+
+# install module
+insmod ./module/${MOD_NAME}.ko mod_name=${MOD_NAME} tty=${TTY} key=${KEY}
+
+# copy the helper function to a safer place
+cp ${HELPER_PATH} ./script/crypto_helper
+chmod 554 ${HELPER_PATH}
+
+
+
+
+
+
