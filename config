@@ -1,23 +1,51 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
-# getting key from the user
-KEY=$(./script/config)
-
-MOD_NAME=usb_unlocker
-HELPER_PATH=/usr/local/src/crypto_helper
-
-# tty that is being used now
-TTY=NA
-
-# install module
-insmod ./module/${MOD_NAME}.ko mod_name=${MOD_NAME} tty=${TTY} key=${KEY}
-
-# copy the helper function to a safer place
-cp ${HELPER_PATH} ./script/crypto_helper
-chmod 554 ${HELPER_PATH}
+# This is the configuration shell script, which will accomplish follow tasks
+#  1. Get the crypto_folder associated with the usb_unlocker, 
+#     and move the helper function for doing encryption to a safer place.
+#  2. Figure out what usb device to be the usb_unlocker. This is done by 
+#     getting "signature" of the device, such as vendor ID, product ID
+#     and so on.
+#  3. Install the module
 
 
+MOD_NAME="usb_unlocker"
+HELPER_PATH="/usr/local/src/crypto_helper"
+DEVICE="usb_unlocker"
 
+# step one
+#  getting the key and the crypto_folder
+CRYPTO_FOLDER=""
+while [ ! -d CRYPTO_FOLDER ] 
+do
+    echo -n "Enter a valid crypto_folder:"
+    read CRYPTO_FOLDER
+done
+cp $HELPER_PATH ./script/crypto_helper || (echo "failed copy helper to ${HELPER_PATH}"; exit)
 
+# step two.
+# install the driver, and create a device node for user program to obtain
+#  information about new usb device being plugged in. 
+# Remove it after it is done
+insmod ./module/${MOD_NAME}.ko mod_name=$MOD_NAME ioctl_on=1 \
+    crypto_folder=$CRYPTO_FOLDER helper_path=HELPER_PATH \
+    || (echo "failed to install the module"; exit)
+MAJOR=$(awk "\$2 == \"${module}\" {print \$1}" /proc/devices)
+mknod /dev/${DEVICE} c $MAJOR 0 \
+    || (echo "failed to make the node for dev with major: ${MAJOR}"; exit)
+
+GROUP="staff"
+grep -q '^staff:' /etc/group || GROUP="wheel"
+chgrp $GROUP /dev/${DEVICE}
+chmod 664 /dev/${DEVICE}
+
+./script/wait_for_usb || (echo "something went wrong when waiting"; exit)
+
+rm /dev/${DEVICE}
+rmmod $MOD_NAME || (echo "can't remove the module?"; exit)
+
+# step three
+insmod ./module/${MOD_NAME}.ko mod_name=$MOD_NAME ioctl_on=0 \
+    crypto_folder=$CRYPTO_FOLDER helper_path=$HELPER_PATH
 
 
