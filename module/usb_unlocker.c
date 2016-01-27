@@ -10,6 +10,7 @@
 #include <linux/usb.h>
 #include <linux/atomic.h>
 #include <linux/errno.h>
+#include <linux/string.h>
 
 #include "usb_unlocker.h"
 #include "usb_unlocker_user.h"
@@ -70,8 +71,9 @@ static int usb_unlocker_probe(struct usb_interface *intf,
 		return 0;
 	}
 	
-	/* some other driver has setup the data? */
+
 	if (unlikely(intf->condition != USB_INTERFACE_UNBOUND)) {
+		/* some other driver has setup the data? */
 		printk(KERN_ERR "other driver has taken or taking it\n");
 		return -EAGAIN;
 	}
@@ -116,14 +118,52 @@ static int usb_unlocker_ioctl(struct usb_interface *intf, unsigned int code
 			      void *buf) {
 #ifdef CJ_DEBUG
 	printk(KERN_INFO "ioctl is invoked\n");
+	printk(KERN_INFO "the interface data address: %p", usb_get_intfdata(intf));
 #endif
 	if (!ioctl_on) {
 		/* if ioctl is off */
 		return -EPERM;
 	}
 
-	/* TODO */
 	/* we might need to do some "configuration" here */
+	struct usb_unlocker_config *config = buf;
+	int ret;
+
+	memset(config, 0, sizeof(struct usb_unlocker_config));
+
+	switch (code) {
+	case UNLOCKER_GET_CONFIG:
+		/* getting the device that is plugged in */
+		struct usb_device *unlocker_device = usb_get_dev(interface_to_usbdev(intf));
+		if (!unlocker_device) {
+			printk(KERN_ERR "not able to get the device?\n");
+			ret = -ENXIO;
+			goto error;
+		}
+
+		/* copy the configuration data to the user */
+		int prod_len = strlen(unlocker_device->product);
+		int mft_len = strlen(unlocker_device->manufacturer);
+		int srl_len = strlen(unlocker_device->serial);
+		if (copy_to_user(buf->product, unlocker_device->product, prod_len+1) 
+		    || copy_to_user(buf->manufacturer, unlocker_device->manufacturer, mft_len+1)
+		    || copy_to_user(buf->srl_len, unlocker_device->serial, srl_len+1)) {
+			ret = -EFAULT;
+			goto error;
+		}
+		
+		/* dec the ref count */
+		usb_put_dev(device_conn);
+		break;
+	default:
+		printk(KERN_ERR "unknown ioctl\n");
+		ret = -EINVAL;
+		goto error;
+	}
+	
+	return 0;
+error:
+	return ret;
 	
 }
 
