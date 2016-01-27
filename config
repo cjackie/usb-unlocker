@@ -1,11 +1,10 @@
 #!/usr/bin/env sh
 
 # This is the configuration shell script, which will accomplish follow tasks
-#  1. Get the crypto_folder associated with the usb_unlocker, 
-#     and move the helper function for doing encryption to a safer place.
+#  1. Get the crypto_folder associated with the usb_unlocker, and Vendor ID.
+#     Move the helper function for doing encryption to a safer place.
 #  2. Figure out what usb device to be the usb_unlocker. This is done by 
-#     getting "signature" of the device, such as vendor ID, product ID
-#     and so on.
+#     getting "signature" of the device, such as series number.
 #  3. Install the module
 
 
@@ -22,14 +21,21 @@ do
     read CRYPTO_FOLDER
 done
 cp $HELPER_PATH ./script/crypto_helper || (echo "failed copy helper to ${HELPER_PATH}"; exit)
+#  get vendor id
+VENDOR_ID=0
+while [ ! VENDOR_ID -eq 0 ]
+do 
+    echo -n "Enter the vendor id of the usb device:"
+    read VENDOR_ID
+done
 
 # step two.
 # install the driver, and create a device node for user program to obtain
 #  information about new usb device being plugged in. 
 # Remove it after it is done
 insmod ./module/${MOD_NAME}.ko mod_name=$MOD_NAME ioctl_on=1 \
-    crypto_folder=$CRYPTO_FOLDER helper_path=HELPER_PATH \
-    || (echo "failed to install the module"; exit)
+    crypto_folder=$CRYPTO_FOLDER helper_path=$HELPER_PATH \
+    VENDOR_ID = $VENDOR_ID || (echo "failed to install the module"; exit)
 MAJOR=$(awk "\$2 == \"${module}\" {print \$1}" /proc/devices)
 mknod /dev/${DEVICE} c $MAJOR 0 \
     || (echo "failed to make the node for dev with major: ${MAJOR}"; exit)
@@ -41,11 +47,13 @@ chmod 664 /dev/${DEVICE}
 
 ./script/wait_for_usb || (echo "something went wrong when waiting"; exit)
 
+
+
 rm /dev/${DEVICE}
 rmmod $MOD_NAME || (echo "can't remove the module?"; exit)
 
 # step three
 insmod ./module/${MOD_NAME}.ko mod_name=$MOD_NAME ioctl_on=0 \
-    crypto_folder=$CRYPTO_FOLDER helper_path=$HELPER_PATH
+    crypto_folder=$CRYPTO_FOLDER helper_path=$HELPER_PATH VENDOR_ID=$VENDOR_ID
 
 
