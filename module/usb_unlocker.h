@@ -3,12 +3,7 @@
 
 #define UNLOCKER_CONFIG_BUFFER_SIZE 512
 
-/* fields for uniquely identify the device(I hope so) */
-struct usb_unlocker_config {
-	char *product;		       /* product ID */
-	char *manufacturer;	       /* manufacturer */
-	char *serial;		       /* serial number */
-};
+#include "usb_unlocker_user.h"
 
 struct usb_unlocker_data {
 	const char *key;	                      /* key for doing encryption */
