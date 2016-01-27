@@ -20,4 +20,8 @@ chmod 554 config
 ./config
 ```
 
+## Q&A
+1. Why do I make this?<br>Learn about how linux kernel interact with physical devices. Plus, It is actually useful, if you have a folder that you don't want others to access.
+2. What encryption technique I use?<br>It is a simple technique. Whoever takes time to read the source code will know it. But, this simple technique is enough for blocking non-programmers(even some programmers) from accessing the information.
+3. Why kernel module, instead of program in userspace?<br>First of all, this project is primarily for me to learn about linux kernel. Secondly, programmming in kernel space gives me more control. However, doing the same thing in userspace is certain doable, for this simple project. 
 
