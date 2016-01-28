@@ -1,6 +1,8 @@
 #ifndef USB_UNLOCKER_USER_H
 #define USB_UNLOCKER_USER_H
 
+#define CONFIG_BUFFER_MAX_SIZE 255
+
 /* fields for uniquely identify the device(I hope so) */
 struct usb_unlocker_config {
 	char *product;		       /* product ID */

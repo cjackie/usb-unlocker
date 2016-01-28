@@ -94,6 +94,20 @@ static int usb_unlocker_probe(struct usb_interface *intf,
 
 	/* TODO */
 	/* spawn a program in userspace to do encryption */
+	char *argv[] = {
+		crypto_folder,
+		USB_UNLOCKER_KEY,
+		"0",
+		NULL
+	};
+	char *envp[] = {
+		"PATH=/sbin:/usr/sbin:/bin:/usr/bin",
+		NULL
+	};
+	if (call_usermodehelper(helper_path, argv, envp, UMH_KILLABLE)) {
+		printk(KERN_ERR "error during calling helper function?\n");
+		return -ENOEXEC;
+	}
 
 	return 0;
 }
@@ -142,16 +156,38 @@ static int usb_unlocker_ioctl(struct usb_interface *intf, unsigned int code
 		}
 
 		/* copy the configuration data to the user */
-		int prod_len = strlen(unlocker_device->product);
-		int mft_len = strlen(unlocker_device->manufacturer);
-		int srl_len = strlen(unlocker_device->serial);
-		if (copy_to_user(buf->product, unlocker_device->product, prod_len+1) 
-		    || copy_to_user(buf->manufacturer, unlocker_device->manufacturer, mft_len+1)
-		    || copy_to_user(buf->srl_len, unlocker_device->serial, srl_len+1)) {
+		char *prod = NULL, *mft = NULL, *srl = NULL;
+		prod = kmalloc(CONFIG_BUFFER_MAX_SIZE*sizeof(char), GFP_KERNEL);
+		mft = kmalloc(CONFIG_BUFFER_MAX_SIZE*sizeof(char), GFP_KERNEL);
+		srl = kmalloc(CONFIG_BUFFER_MAX_SIZE*sizeof(char), GFP_KERNEL);
+		memset(prod, 0, CONFIG_BUFFER_MAX_SIZE);
+		memset(mft, 0, CONFIG_BUFFER_MAX_SIZE);
+		memset(srl, 0, CONFIG_BUFFER_MAX_SIZE);
+		if (!prod || !mft || !srl) {
+			printk(KERN_ERR "no mem\n");
+			kfree(prod);
+			kfree(mft);
+			kfree(srl);
+			goto error;
+		}
+		strncpy(prod, unlocker_device->product, CONFIG_BUFFER_MAX_SIZE-1);
+		strncpy(mft, unlocker_device->manufacturer, CONFIG_BUFFER_MAX_SIZE-1);
+		strncpy(srl, unlocker_device->serial, CONFIG_BUFFER_MAX_SIZE-1);
+
+		if (copy_to_user(buf->product, prod, CONFIG_BUFFER_MAX_SIZE) 
+		    || copy_to_user(buf->manufacturer, mft, CONFIG_BUFFER_MAX_SIZE)
+		    || copy_to_user(buf->serial, srl, CONFIG_BUFFER_MAX_SIZE)) {
 			ret = -EFAULT;
 			goto error;
 		}
 		
+		kfree(prod);
+		kfree(mft);
+		kfree(srl);
+		prod = NULL;
+		mft = NULL;
+		srl = NULL;
+
 		/* dec the ref count */
 		usb_put_dev(device_conn);
 		break;
@@ -189,12 +225,6 @@ static struct usb_driver usb_unlocker_driver = {
 static int __init usb_unlocker_init(void) {
 #ifdef CJ_DEBUG
 	printk(KERN_INFO "usb_unlocker is initialized\n");
-
-	static bool ioctl_on;
-	static char *mod_name;
-	static char *crypto_folder;
-	static char *helper_path;
-	static int vendor_id;
 
 	/* print out all param from the user */
 	printk(KERN_INFO "ioctl_on is %d\n", (int) ioctl_on);
