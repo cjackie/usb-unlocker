@@ -1,7 +1,69 @@
-##############################################################
-# helper program for encryption and decryption. This is      #
-#  invoked from kernel space via @call_usermodehelper_setup  #
-##############################################################
+##################################################################
+# helper program for encryption and decryption. This is          #
+#  invoked from kernel space via @call_usermodehelper_setup      #
+# Input arguments:                                               #
+#  @crypto_folder: the target folder.                            #
+#  @key: encrytion key                                           #
+#  @cmd: command, either 0 or 1(to encrypt or decrypt)           #
+##################################################################
 
 #!/usr/bin/env python
+
+import sys
+import os
+import dircache
+
+def encrypt(filepath, key):
+    # TODO
+
+def decrypt(filepath, key):
+    # TODO
+
+if len(sys.argv) != 4:
+    print "Invalid argument"
+    sys.exit(-1)
+
+crypto_folder = sys.argv[1]
+key = sys.argv[2]
+cmd = sys.argv[3]
+
+# checking parameters
+
+if os.path.exists(crypto_folder):
+    if stat.S_ISDIR(os.path(crypto_folder).st_mode) == 0:
+        print "not a folder"
+        sys.exit(-1)
+else:
+    print "the folder does not exist"
+    sys.exit(-1)
+
+if key == "" or (cmd != "0" and cmd != "1"):
+    print "invalid key or cmd"
+    sys.exit(-1)
+
+# encrypt all files in the folder, including sub folders
+folders = [ crypto_folder ]
+while folders == []:
+    folder = folders.pop()
+    for fpath in dircache.opendir(folder):
+        fpath = os.path.join(folder, fpath)
+        if not os.path.exists(fpath):
+            # if the folder does not exist, don't encrypt it
+            # this is unlikely, put it here in case
+            print "the file does not exist:", fpath
+            continue
+
+        if stat.S_ISDIR(os.stat(fpath).st_mode) != 0:
+            # this is folder just added to the folders list
+            folders.append(fpath)
+        elif stat.S_ISREG(os.stat(fpath).st_mode) != 0:
+            # it is a regular file
+            if cmd == "0":
+                encrypt(fpath, key)
+            else:
+                decrypt(fpath, key)
+        else:
+            print "warning, not a valid file:", fpath
+                    
+    
 
