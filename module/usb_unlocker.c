@@ -65,8 +65,12 @@ static int __init usb_unlocker_init(void) {
 
 	
 static void usb_unlocker_exit(void) {
-	/* cancel all the work */
-	/* TODO */
+	printk(KERN_INFO "module exiting");
+	
+	while (cancel_delayed_work_sync(&usb_unlocker_work)) {
+		printk(KERN_INFO "wait for canceling work\n");
+		schedule();
+	}
 }
 
 module_init(usb_unlocker_init);
