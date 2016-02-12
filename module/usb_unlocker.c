@@ -43,10 +43,10 @@ struct dev_itr_arg {
 /* status of our usb */
 static int unlocker_status;
 static struct unlocker_key key = { 
-	.idVendor = 0,
-	.idProduct = 0,
-	.bcdDevice = 0,
-	.iProduct = 0,
+	.idVendor = 0x0e0f,
+	.idProduct = 0x0003,
+	.bcdDevice = 0x0103,
+	.iProduct = 2,
 	.iSerialNumber = 0,
 };
 static struct dev_itr_arg dev_itr_arg = { .key = &key };
@@ -91,12 +91,14 @@ static int look_for_unlocker(struct usb_device *usb_dev, void *data) {
 	printk(KERN_INFO "a usb with devpath: %s\n", usb_dev->devpath);
 	struct dev_itr_arg *arg;
 
+#ifdef CJ_DEBUG
 	printk(KERN_INFO "-------------\n");
 	printk(KERN_INFO "idVendor: %d\n", (int)le16_to_cpu(usb_dev->descriptor.idVendor));
 	printk(KERN_INFO "idProduct: %d\n", (int)le16_to_cpu(usb_dev->descriptor.idProduct));
 	printk(KERN_INFO "bcdDevice: %d\n", (int)le16_to_cpu(usb_dev->descriptor.bcdDevice));
 	printk(KERN_INFO "iProduct: %d\n", (int)usb_dev->descriptor.iProduct);
 	printk(KERN_INFO "iSerialNumber:%d\n", (int)usb_dev->descriptor.iSerialNumber);
+#endif
 	
 	arg = data;
 	if (arg->key->idVendor == usb_dev->descriptor.idVendor &&
