@@ -15,20 +15,40 @@ MODULE_AUTHOR("Chaojie Wang");
 #define CJ_DEBUG
 
 #define TIMER_INTV (5*HZ)
-#define HELPER_FN_IDLE 0
-#define HELPER_FN_RUNNING 1
+#define UNLOCKER_STATUS_UNKNOWN 0
+#define UNLOCKER_STATUS_PLUG 1
+#define UNLOCKER_STATUS_UNPLUG 2
 
 /**
  * key for unlock and lock
  */
 struct unlocker_key {
-	/* TODO */
-	int i;
-};
+	int idVendor;
+	int idProduct;
+	int bcdDevice;
+	int iProduct;
+	int iSerialNumber;
+}
+/**
+ * @key, key
+ * @found, zero means usb device associated with the key is not found, 
+ *         otherwise, not zero.
+ */
+struct dev_itr_arg {
+	struct unlocker_key *key;
+	int found;
+}
 
-static struct unlocker_key key = {
-	.i = 1,
+/* status of our usb */
+static int unlocker_status;
+static struct unlocker_key key = { 
+	.idVendor = 0;
+	.idProduct = 0;
+	.bcdDevice = 0;
+	.iProduct = 0;
+	.iSerialNumber = 0;
 };
+static struct dev_itr_arg dev_itr_arg = {.key = &key }
 static struct delayed_work usb_unlocker_work;
 
 extern struct workqueue_struct *system_long_wq; /* just use it */
@@ -64,16 +84,53 @@ static int call_encrypt(int encrypt) {
 }
 
 /**
+ * check usb_dev, and check if it matches with the key.
+ */
+static int look_for_unlocker(struct usb_device *usb_dev, void *data) {
+	printk(KERN_INFO "a usb with devpath: %s\n", usb_dev->devpath);
+	struct dev_itr_arg *arg;
+
+	printk(KERN_INFO "-------------\n");
+	printk(KERN_INFO "idVendor: %d\n", (int)le16_to_cpu(usb_dev->descriptor.idVendor));
+	printk(KERN_INFO "idProduct: %d\n", (int)le16_to_cpu(usb_dev->descriptor.idProduct));
+	printk(KERN_INFO "bcdDevice: %d\n", (int)le16_to_cpu(usb_dev->descriptor.bcdDevice));
+	printk(KERN_INFO "iProduct: %d\n", (int)usb_dev->descriptor.iProduct);
+	printk(KERN_INFO "iSerialNumber:%d\n", (int)usb_dev->descriptor.iSerialNumber));
+	
+	arg = (struct dev_itr_arg *) data;
+	if (arg->key.idVendor == usb_dev->descriptor.idVendor &&
+	    arg->key.idProduct == usb_dev->descriptor.idProduct &&
+	    arg->key.bcdDevice == usb_dev->descriptor.bcdDevice &&
+	    arg->key.iProduct == usb_dev->descriptor.iProduct &&
+	    arg->key.iSerialNumber == usb_dev->descriptor.iSerialNumber) {
+		arg->found = 1;
+	} else {
+		arg->found = 0;
+	}
+
+	return 0;
+}
+
+/**
  * walking over all usb devices, and see if a much
  */
 static void walk_usb_devices(struct work_struct *work) {
 	printk(KERN_INFO "walk_usb_devices is invoked\n");
+	
+	if (usb_for_each_dev(&dev_itr_arg, look_for_unlocker)) {
+		printk(KERN_WARNING "iteration broke prematurely");
+	}
 
-	/* walking over all */
-	/* and invoke helper function if needed */
-	/* TODO */
+	if (unlocker_status == UNLOCKER_STATUS_UNPLUG && dev_itr_arg.found) {
+		call_encrypt(1);
+		unlocker_status = UNLOCKER_STATUS_PLUG;
+	} else if (unlocker_status == UNLOCKER_STATUS_PLUG && !dev_itr_arg.found) {
+		call_encrypt(0);
+		unlocker_status = UNLOCKER_STATUS_UNPLUG;
+	}
+
 	if (!queue_delayed_work(system_long_wq, &usb_unlocker_work, TIMER_INTV)) {
-		printk(KERN_ERR "It is already on the queue?\n");
+		printk(KERN_WARNING "It is already on the queue?\n");
 	}
 	printk(KERN_INFO "key: %d\n", key.i);
 }
@@ -89,6 +146,7 @@ static int __init usb_unlocker_init(void) {
 	if (call_encrypt(1)) {
 		return -1;
 	}
+	unlocker_status = UNLOCKER_STATUS_UNGLUG;
 
 	if (queue_delayed_work(system_long_wq, &usb_unlocker_work, TIMER_INTV)) {
 		printk(KERN_ERR "work is running?\n");
