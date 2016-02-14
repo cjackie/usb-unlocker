@@ -65,14 +65,15 @@ static int call_encrypt(int encrypt) {
 	/* TODO fix it later */
 	printk(KERN_INFO "call_encrypt is invoked\n");
 	char *path;
-	char *argv[4], *envp[3];
+	char *argv[5], *envp[3];
 	int wait;
 	
 	path = "/home/chaojiewang/repos/usb-unlock/script/usb_unlocker_helper";
 	argv[0] = path;
-	argv[1] = (encryption == 1) ? "-e" : "-d";
+	argv[1] = (encrypt == 1) ? "-e" : "-d";
 	argv[2] = "-p";
 	argv[3] = "KEY";
+	argv[4] = NULL;
 	envp[0] = "HOME=~";
 	envp[1] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
 	envp[2] = NULL;
