@@ -65,12 +65,14 @@ static int call_encrypt(int encrypt) {
 	/* TODO fix it later */
 	printk(KERN_INFO "call_encrypt is invoked\n");
 	char *path;
-	char *argv[2], *envp[3];
+	char *argv[4], *envp[3];
 	int wait;
 	
-	path = "/usr/bin/gnome-terminal";
+	path = "/home/chaojiewang/repos/usb-unlock/script/usb_unlocker_helper";
 	argv[0] = path;
-	argv[1] = NULL;
+	argv[1] = (encryption == 1) ? "-e" : "-d";
+	argv[2] = "-p";
+	argv[3] = "KEY";
 	envp[0] = "HOME=~";
 	envp[1] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
 	envp[2] = NULL;
@@ -150,7 +152,7 @@ static int __init usb_unlocker_init(void) {
 	}
 	unlocker_status = UNLOCKER_STATUS_UNPLUG;
 
-	if (queue_delayed_work(system_long_wq, &usb_unlocker_work, TIMER_INTV)) {
+	if (!queue_delayed_work(system_long_wq, &usb_unlocker_work, TIMER_INTV)) {
 		printk(KERN_ERR "work is running?\n");
 	}
 	return 0;
