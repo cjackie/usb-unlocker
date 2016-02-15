@@ -17,21 +17,20 @@
 #include "blowfish/blowfish.h"
 
 /* folder whose files will be decrypted */
-static char *folder = "/home/chaojiewang/repos/usb-unlock/script/folder";
+static char *folder = "/home/chaojiewang/repos/usb-unlock/script/folder/";
 static int eflag, dflag, pflag;
 
 /**
- * encrypt or decrypt content from file descriptor in_fd
- * output it to file descriptor out_fd, with the string key.
- * The implementation is modification of cipher.c in blowfish.
+ * encrypt or decrypt content of a file descriptor fd. Resulted
+ * content is written back to fd. The implementation is modification 
+ * of cipher.c in blowfish.
  *
  * @key, key to encrypt or decrypt a file.
- * @in_fd, input file descriptor.
- * @out_fd, output file descriptor.
+ * @in_fd, file descriptor.
  *
  * return 0 upon success, -1 otherwise.
  */
-int cj_encrypt(char *key, int in_fd, int out_fd) {
+int cj_encrypt(char *key, int fd) {
   int len = 1024;
   char from[len], to[len];
 
@@ -57,8 +56,8 @@ int cj_encrypt(char *key, int in_fd, int out_fd) {
   /* doing encryption */
   encrypt_flag = (eflag) ? BF_ENCRYPT : BF_DECRYPT;
   while (1) {
-    /* read data from input file */
-    io_rd = read(in_fd, from, len);
+    /* read data from file */
+    io_rd = read(fd, from, len);
     if (io_rd == 0) 
       break;
     if (io_rd < 0) {
@@ -70,11 +69,15 @@ int cj_encrypt(char *key, int in_fd, int out_fd) {
     BF_cfb64_encrypt((unsigned char *)from, (unsigned char *)to,
 		     len, &bf_key, (unsigned char *)iv, &n, encrypt_flag);
 
-    /* write "to" to output file */
+    /* write back to file */
+    if (lseek(fd, -io_rd, SEEK_CUR) < 0) {
+      perror("In encrypt, error when lseek");
+      return -1;
+    }
     io_wr = 0;
     while (io_wr != io_rd) {
       assert(io_wr <= io_rd);
-      io_n = write(out_fd, &to[io_wr], io_rd-io_wr);
+      io_n = write(fd, &to[io_wr], io_rd-io_wr);
       if (io_n < 0) {
 	perror("In encrypt, error when writing to output file");
 	return -1;
@@ -95,9 +98,9 @@ int encrypt(char *key) {
   /* files and directory */
   int fn_len = 4092;
   char fn[fn_len];
-  char tmp_fn[fn_len];
+
   struct stat stat_buf;
-  int infd, outfd;
+  int fd;
   DIR *dirp;
   struct dirent *dentry;
 
@@ -108,37 +111,32 @@ int encrypt(char *key) {
     return -1;
   }
 
-  strcpy(tmp_fn, "/tmp/cj_tmp_file");
   while ((dentry = readdir(dirp)) != NULL) {
     /* just one file for now */
     strcpy(fn, folder);
     strncat(fn, dentry->d_name, fn_len-strlen(folder)-1);
+    printf("%s\n", fn);
     if (stat(fn, &stat_buf) < 0) {
-      printf("warning: failed to see a stat of a file?");
+      printf("warning: failed to see a stat of a file?\n");
       continue;
     }
 
     if (S_ISREG(stat_buf.st_mode)) {
-      infd = open(fn, O_RDONLY);
-      if (infd < 0) {
-	printf("warning: can't open in file?");
+      /* checking first */
+      fd = open(fn, O_RDWR);
+      if (fd < 0) {
+	printf("warning: can't open in file?\n");
 	continue;
       }
-
-      outfd = open(tmp_fn, O_WRONLY | O_TRUNC | O_CREAT, 664);
-      if (outfd < 0) {
-	printf("warning: can't open out file?");
-	close(infd);
-	continue;
-      } 
-
-      if (cj_encrypt(key, infd, outfd)) {
-	fprintf(stderr, "something when doing encryption");
+      
+      /* doing encryption */
+      if (cj_encrypt(key, fd)) {
+	fprintf(stderr, "something when doing encryption\n");
 	return -1;
       }
-      close(infd);
-      close(outfd);
-      break;			/* TODO for now */
+      close(fd);
+
+      break;			/* TODO just do one file for now */
     }
   }
 
