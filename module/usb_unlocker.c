@@ -51,8 +51,21 @@ static struct unlocker_key key = {
 };
 static struct dev_itr_arg dev_itr_arg = { .key = &key };
 static struct delayed_work usb_unlocker_work;
+static char *usb_unlocker_key;
 
 extern struct workqueue_struct *system_long_wq; /* just use it */
+
+/**
+ * Iinitialize a key for encryption. @usb_unlocker_key will be 
+ * fill out.
+ * return 0 on success.
+ */
+int init_usb_unlocker_key(void) {
+	/* TODO */
+	/* dummy function for now */
+	usb_unlocker_key = "chaojie";
+	return 0;
+}
 
 
 /**
@@ -72,7 +85,7 @@ static int call_encrypt(int encrypt) {
 	argv[0] = path;
 	argv[1] = (encrypt == 1) ? "-e" : "-d";
 	argv[2] = "-p";
-	argv[3] = "KEY";
+	argv[3] = usb_unlocker_key;
 	argv[4] = NULL;
 	envp[0] = "HOME=~";
 	envp[1] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
@@ -146,6 +159,12 @@ static int __init usb_unlocker_init(void) {
 
 	/* initial work */
 	INIT_DELAYED_WORK(&usb_unlocker_work, walk_usb_devices);
+
+	/* init encryption key */
+	if (init_usb_unlocker_key()) {
+		printk(KERN_ERR "failed to init key?\n");
+		return -1;
+	}
   
 	/* invoke helper function to encrypt data */
 	if (call_encrypt(1)) {
@@ -154,7 +173,7 @@ static int __init usb_unlocker_init(void) {
 	unlocker_status = UNLOCKER_STATUS_UNPLUG;
 
 	if (!queue_delayed_work(system_long_wq, &usb_unlocker_work, TIMER_INTV)) {
-		printk(KERN_ERR "work is running?\n");
+		printk(KERN_WARNING "work is running?\n");
 	}
 	return 0;
 }
