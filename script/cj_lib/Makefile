@@ -14,4 +14,4 @@ cj_array.o: cj_array.c cj_array.h
 	$(CC) $(CFLAG) -c cj_array.c -o cj_array.o
 
 clean:
-	rm *.o *~
+	rm *.o

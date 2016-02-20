@@ -21,4 +21,4 @@ cj_lib:
 clean:
 	cd blowfish && $(MAKE) clean
 	cd cj_lib && $(MAKE) clean
-	rm *.o *.~
+	rm *.o
