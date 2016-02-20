@@ -71,7 +71,7 @@ void *cj_array_pop(struct cj_array *arr) {
     return NULL;
   }
   
-  return arr->raw_array[arr->size--];
+  return arr->raw_array[--arr->size];
 }
 
 
@@ -92,9 +92,9 @@ int main() {
     cj_array_add(my_arr, tmp);
   }
   
-  i = 0;
+  i = 9;
   while ((tmp = cj_array_pop(my_arr)) != NULL) {
-    assert(*tmp == i++);
+    assert(*tmp == i--);
   }
 
   CJ_ARRAY_DESTROY(my_arr, int *);
