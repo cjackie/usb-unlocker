@@ -18,7 +18,7 @@
 #include "cj_lib/cj_array.h"
 
 /* folder whose files will be decrypted */
-static char *unlocker_folder = "/home/chaojiewang/repos/usb-unlock/script/folder/";
+static char *unlocker_folder = "/home/chaojiewang/repos/usb-unlocker/script/folder/";
 static int eflag, dflag, pflag;
 
 /**
@@ -116,22 +116,13 @@ int encrypt(char *key, char *folder) {
     snprintf(fn, fn_len-1, "%s%s", folder, dentry->d_name);
     fn[fn_len-1] = '\0';
     printf("%s\n", fn);
-    if (stat(fn, &stat_buf) < 0) {
-      printf("warning: failed to see a stat of a file?\n");
-      continue;
-    }
-
-    if (S_ISREG(stat_buf.st_mode)) {
+    if (stat(fn, &stat_buf) == 0 && S_ISREG(stat_buf.st_mode)) {
       /* checking first */
       fd = open(fn, O_RDWR);
       if (fd < 0) {
-	printf("warning: can't open in file?\n");
-	continue;
-      }
-      
-      /* doing encryption */
-      if (cj_encrypt(key, fd)) {
-	fprintf(stderr, "something when doing encryption\n");
+	printf("warning: can't open in file: %s?\n", fn);
+      } else if (cj_encrypt(key, fd)) {
+	fprintf(stderr, "something when doing encryption: %s\n", fn);
 	return -1;
       }
       close(fd);
@@ -175,7 +166,9 @@ int encrypt_all(char *key, char *folder) {
 	tmp_folder = malloc((strlen(dentry->d_name)+strlen(current_folder)+2)*sizeof(char));
 	assert(sprintf(tmp_folder, "%s%s/", current_folder, dentry->d_name) >= 0);
 	
-	if (stat(tmp_folder, &stat_buf) >= 0 && S_ISDIR(stat_buf.st_mode)) {
+	if (stat(tmp_folder, &stat_buf) >= 0 && S_ISDIR(stat_buf.st_mode)
+	    && strcpy(tmp_folder, ".") != 0 && strcpy(tmp_folder, "..") != 0) {
+	  /* TODO can visit same folder again happen? such as hardlink? */
 	  cj_array_add(folders, tmp_folder);
 	}
       }
