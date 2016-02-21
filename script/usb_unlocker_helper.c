@@ -163,13 +163,18 @@ int encrypt_all(char *key, char *folder) {
     dirp = opendir(current_folder);
     if (dirp != NULL) {
       while ((dentry = readdir(dirp)) != NULL) {
+	if (strcmp(dentry->d_name, ".") == 0 || strcmp(dentry->d_name, "..") == 0) {
+	  /* skip current folder and parent folder */
+	  continue;
+	}
+
 	tmp_folder = malloc((strlen(dentry->d_name)+strlen(current_folder)+2)*sizeof(char));
 	assert(sprintf(tmp_folder, "%s%s/", current_folder, dentry->d_name) >= 0);
-	
-	if (stat(tmp_folder, &stat_buf) >= 0 && S_ISDIR(stat_buf.st_mode)
-	    && strcpy(tmp_folder, ".") != 0 && strcpy(tmp_folder, "..") != 0) {
+	if (stat(tmp_folder, &stat_buf) >= 0 && S_ISDIR(stat_buf.st_mode)) {
 	  /* TODO can visit same folder again happen? such as hardlink? */
 	  cj_array_add(folders, tmp_folder);
+	} else {
+	  free(tmp_folder);
 	}
       }
     }
