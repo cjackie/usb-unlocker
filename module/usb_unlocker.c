@@ -81,7 +81,7 @@ static int call_encrypt(int encrypt) {
 	char *argv[5], *envp[3];
 	int wait;
 	
-	path = "/home/chaojiewang/repos/usb-unlock/script/usb_unlocker_helper";
+	path = "/home/chaojiewang/repos/usb-unlocker/script/usb_unlocker_helper";
 	argv[0] = path;
 	argv[1] = (encrypt == 1) ? "-e" : "-d";
 	argv[2] = "-p";
