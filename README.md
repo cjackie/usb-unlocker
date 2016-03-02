@@ -11,7 +11,16 @@ First, a folder is configured to be a crypto_folder, and a USB storage device is
 - ```Makefile``` top level make file.
 
 ## How to install
-TODO
+```
+git clone https://github.com/cjackie/usb-unlocker.git
+cd usb-unlocker
+make 
+make install
+```
+To uninstall:
+```
+make uninstall
+```
 
 ## Q&A
 1. Why do I make this?<br>Learn about how linux kernel interact with physical devices. Plus, It is actually useful, if you have a folder that you don't want others to access.
