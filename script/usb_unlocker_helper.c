@@ -15,9 +15,10 @@
 #include <sys/stat.h>
 
 #include "blowfish/blowfish.h"
+#include "cj_lib/cj_array.h"
 
 /* folder whose files will be decrypted */
-static char *folder = "/home/chaojiewang/repos/usb-unlock/script/folder/";
+static char *unlocker_folder = "/home/chaojiewang/repos/usb-unlocker/script/folder/";
 static int eflag, dflag, pflag;
 
 /**
@@ -94,52 +95,96 @@ int cj_encrypt(char *key, int fd) {
  * @key, key used for doing encryption.
  * return 0 when success.
  */
-int encrypt(char *key) {
+int encrypt(char *key, char *folder) {
   /* files and directory */
   int fn_len = 4092;
-  char fn[fn_len];
-
-  struct stat stat_buf;
-  int fd;
+  char fn[fn_len];		/* temporary placeholder for file */
+  struct stat stat_buf;	
+  int fd;		    
   DIR *dirp;
   struct dirent *dentry;
-
+  
   /* open files */
   dirp = opendir(folder);
   if (dirp == NULL) {
     perror("try to open a directory\n");
     return -1;
   }
-
+  
   while ((dentry = readdir(dirp)) != NULL) {
     /* just one file for now */
-    strcpy(fn, folder);
-    strncat(fn, dentry->d_name, fn_len-strlen(folder)-1);
+    snprintf(fn, fn_len-1, "%s%s", folder, dentry->d_name);
+    fn[fn_len-1] = '\0';
     printf("%s\n", fn);
-    if (stat(fn, &stat_buf) < 0) {
-      printf("warning: failed to see a stat of a file?\n");
-      continue;
-    }
-
-    if (S_ISREG(stat_buf.st_mode)) {
+    if (stat(fn, &stat_buf) == 0 && S_ISREG(stat_buf.st_mode)) {
       /* checking first */
       fd = open(fn, O_RDWR);
       if (fd < 0) {
-	printf("warning: can't open in file?\n");
-	continue;
-      }
-      
-      /* doing encryption */
-      if (cj_encrypt(key, fd)) {
-	fprintf(stderr, "something when doing encryption\n");
+	printf("warning: can't open in file: %s?\n", fn);
+      } else if (cj_encrypt(key, fd)) {
+	fprintf(stderr, "something when doing encryption: %s\n", fn);
 	return -1;
       }
       close(fd);
-
-      break;			/* TODO just do one file for now */
     }
   }
 
+  return 0;
+}
+
+/**
+ * encrypt files in a folder, including sub folders.
+ * @key, key for doing encryption
+ * @folder, the folder
+ * return 0 on success, -1 otherwise.
+ */
+int encrypt_all(char *key, char *folder) {
+  char *tmp_folder;		/* temporary placeholder for directory */
+  char *current_folder;
+  struct cj_array *folders; 	/* all folders that needs to be open */
+  struct stat stat_buf;	
+  DIR *dirp;
+  struct dirent *dentry;
+  
+  assert((folders = cj_array_alloc(1)) != NULL);
+
+  tmp_folder = malloc((strlen(folder)+1)*sizeof(char));
+  assert(tmp_folder != NULL);
+  strcpy(tmp_folder, folder);
+  assert(cj_array_add(folders, (void *)tmp_folder) != -1);
+
+  while ((current_folder = cj_array_pop(folders)) != NULL) {
+    /* encrypt all files inside this folder */
+    if (encrypt(key, current_folder)) {
+      return -1;
+    }
+    
+    /* find all sub folder */
+    dirp = opendir(current_folder);
+    if (dirp != NULL) {
+      while ((dentry = readdir(dirp)) != NULL) {
+	if (strcmp(dentry->d_name, ".") == 0 || strcmp(dentry->d_name, "..") == 0) {
+	  /* skip current folder and parent folder */
+	  continue;
+	}
+
+	tmp_folder = malloc((strlen(dentry->d_name)+strlen(current_folder)+2)*sizeof(char));
+	assert(sprintf(tmp_folder, "%s%s/", current_folder, dentry->d_name) >= 0);
+	if (stat(tmp_folder, &stat_buf) >= 0 && S_ISDIR(stat_buf.st_mode)) {
+	  /* TODO can visit same folder again happen? such as hardlink? */
+	  cj_array_add(folders, tmp_folder);
+	} else {
+	  free(tmp_folder);
+	}
+      }
+    }
+
+    /* free mem */
+    free(current_folder);
+  }
+
+  assert(CJ_ARRAY_DESTROY(folders, char *) != -1);
+  
   return 0;
 }
 
@@ -211,7 +256,7 @@ int main(int argc, char *argv[]) {
   
   key = argv[i+1];
   
-  if (encrypt(key)) {
+  if (encrypt_all(key, unlocker_folder)) {
     fprintf(stderr, "something went wrong when doing encryption.\n");
   }
   
