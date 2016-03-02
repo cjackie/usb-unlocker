@@ -10,50 +10,29 @@
 #include <linux/workqueue.h>
 #include <linux/usb.h>
 
+#include "usb_unlocker.h"
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Chaojie Wang");
 
 #define CJ_DEBUG
-
 #define TIMER_INTV (5*HZ)
-#define UNLOCKER_STATUS_UNKNOWN 0
-#define UNLOCKER_STATUS_PLUG 1
-#define UNLOCKER_STATUS_UNPLUG 2
-
-/**
- * key for unlock and lock
- */
-struct unlocker_key {
-	int idVendor;
-	int idProduct;
-	int bcdDevice;
-	int iProduct;
-	int iSerialNumber;
-};
-/**
- * @key, key
- * @found, zero means usb device associated with the key is not found, 
- *         otherwise, not zero.
- */
-struct dev_itr_arg {
-	struct unlocker_key *key;
-	int found;
-};
 
 /* status of our usb */
-static int unlocker_status;
-static struct unlocker_key key = { 
-	.idVendor = 1256,
-	.idProduct = 26720,
-	.bcdDevice = 1024,
-	.iProduct = 2,
-	.iSerialNumber = 3,
-};
+static enum unlocker_status unlocker_status;
+static struct unlocker_key key;
 static struct dev_itr_arg dev_itr_arg = { .key = &key };
 static struct delayed_work usb_unlocker_work;
 static char *usb_unlocker_key;
 
-extern struct workqueue_struct *system_long_wq; /* just use it */
+extern struct workqueue_struct *system_long_wq;
+
+/* Getting key */
+module_param_named(idVendor, key.idVendor, int, 0);
+module_param_named(idProduct, key.idProduct, int, 0);
+module_param_named(bcdDevice, key.bcdDevice, int, 0);
+module_param_named(iProduct, key.iProduct, int, 0);
+module_param_named(iSerialNumber, key.iSerialNumber, int, 0);
 
 /**
  * Iinitialize a key for encryption. @usb_unlocker_key will be 
@@ -81,14 +60,14 @@ static int call_encrypt(int encrypt) {
 	char *argv[5], *envp[3];
 	int wait;
 	
-	path = "/home/chaojiewang/repos/usb-unlock/script/usb_unlocker_helper";
+	path = "/usr/local/bin/usb_unlocker_helper";
 	argv[0] = path;
 	argv[1] = (encrypt == 1) ? "-e" : "-d";
 	argv[2] = "-p";
 	argv[3] = usb_unlocker_key;
 	argv[4] = NULL;
 	envp[0] = "HOME=~";
-	envp[1] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
+	envp[1] = "PATH=/usr/local/bin/:/usr/bin/";
 	envp[2] = NULL;
 	wait = UMH_WAIT_PROC;
 
