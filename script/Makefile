@@ -16,8 +16,9 @@ blowfish:
 	cd blowfish && $(MAKE)
 
 clean:
+	rm -f *.o usb_unlocker_helper
 	cd blowfish && $(MAKE) clean
-	rm *.o
+
 
 
 

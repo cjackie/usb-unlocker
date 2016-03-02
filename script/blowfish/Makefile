@@ -12,5 +12,5 @@ $(OBJS): %.o : %.c $(HDRS)
 	$(CC) $(CFLAG) -c $< -o $@
 
 clean: 
-	rm *.o
+	rm -f *.o
 
