@@ -18,7 +18,7 @@
 #include "cj_lib/cj_array.h"
 
 /* folder whose files will be decrypted */
-static char *unlocker_folder = "/home/chaojiewang/repos/usb-unlocker/script/folder/";
+static char *unlocker_folder = UNLOCKER_FOLDER;
 static int eflag, dflag, pflag;
 
 /**
